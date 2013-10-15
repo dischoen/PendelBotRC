@@ -102,8 +102,22 @@ public class RemoteControlView extends View {
     		(float) (yPoint - radius
     				* Math.cos((double) (-y2) / magnitude * 3.143)), paint2);
     canvas.drawLine(
+    		xPoint+5,
+    		yPoint+5,
+    		(float) (xPoint + radius
+    				* Math.sin((double) (-y2) / magnitude * 3.143)),
+    		(float) (yPoint - radius
+    				* Math.cos((double) (-y2) / magnitude * 3.143)), paint2);
+    canvas.drawLine(
     		xPoint,
     		yPoint,
+    		(float) (xPoint + radius
+    				* Math.sin((double) (-z2) / magnitude * 3.143)),
+    		(float) (yPoint - radius
+    				* Math.cos((double) (-z2) / magnitude * 3.143)), paint3);
+    canvas.drawLine(
+    		xPoint+5,
+    		yPoint+5,
     		(float) (xPoint + radius
     				* Math.sin((double) (-z2) / magnitude * 3.143)),
     		(float) (yPoint - radius
@@ -113,17 +127,11 @@ public class RemoteControlView extends View {
     canvas.drawText("light "+String.valueOf(light),        xPoint-200, yPoint-3*offset, paint);
   }
 
-  public void updateData2(float[] values, long ts) {
+  public void updateData(float[] values, long ts) {
 	    this.x2    = values[0];
 	    this.y2    = values[1];
 	    this.z2    = values[2];
   
   invalidate();
 }
-
-  public void updateData3(float[] values, long ts) {
-	  this.light    = values[0];
-	  invalidate();
-}
-
 } 

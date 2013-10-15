@@ -1,7 +1,10 @@
 package org.tshinbum.dodi;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Set;
+import java.util.UUID;
 
 import org.tshinbum.dodi.R;
 
@@ -9,6 +12,7 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
 import android.content.Context;
@@ -21,6 +25,8 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,6 +34,7 @@ public class MainActivity extends Activity {
 
   private static SensorManager sensorService;
   private RemoteControlView rcView;
+  private Button btnConnect;
   private Sensor sensor;
 
   TextView out;
@@ -38,6 +45,12 @@ public class MainActivity extends Activity {
   private OutputStream outStream = null;
   private InputStream inStream = null;
 
+  // Well known SPP UUID
+  private static final UUID MY_UUID =
+      UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+ 
+  // Insert your server's MAC address
+  private static String address = "00:07:80:83:AC:00";
   
 /** Called when the activity is first created. */
 
@@ -48,14 +61,15 @@ public class MainActivity extends Activity {
 	setContentView(R.layout.activity_main);
     //compassView = new MyCompassView(this);
     rcView = (RemoteControlView) findViewById(R.id.myCompassView1);
-    
+    btnConnect = (Button) findViewById(R.id.button1);
+   
     setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
     
     sensorService = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
     
     sensor = sensorService.getDefaultSensor(Sensor.TYPE_GRAVITY);
     if (sensor != null) {
-      sensorService.registerListener(mySensorEventListener2, sensor,
+      sensorService.registerListener(mySensorEventListener, sensor,
           SensorManager.SENSOR_DELAY_NORMAL);
       Log.i("Compass MainActivity", "Registerered for GRAVITY Sensor");
 
@@ -66,35 +80,113 @@ public class MainActivity extends Activity {
       //finish();
     }
 
-    sensor = sensorService.getDefaultSensor(Sensor.TYPE_LIGHT);
-    if (sensor != null) {
-      sensorService.registerListener(mySensorEventListener3, sensor,
-          SensorManager.SENSOR_DELAY_NORMAL);
-      Log.i("Compass MainActivity", "Registerered for LIGHT Sensor");
-
-    } else {
-      Log.e("Compass MainActivity", "Registerered for LIGHT Sensor");
-      Toast.makeText(this, "LIGHT Sensor not found",
-          Toast.LENGTH_LONG).show();
-      //finish();
-    }
-
     out = (TextView) findViewById(R.id.out);
     btAdapter = BluetoothAdapter.getDefaultAdapter();
     CheckBTState();
-
   }
 
+  @Override
+  public void onResume() {
+    super.onResume();
+ 
+    out.append("\n...In onResume...\n...Attempting client connect...");
+ 
+    // Set up a pointer to the remote node using it's address.
+    BluetoothDevice device = btAdapter.getRemoteDevice(address);
+ 
+    // Two things are needed to make a connection:
+    //   A MAC address, which we got above.
+    //   A Service ID or UUID.  In this case we are using the
+    //     UUID for SPP.
+    try {
+      btSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
+    } catch (IOException e) {
+      AlertBox("Fatal Error", "In onResume() and socket create failed: " + e.getMessage() + ".");
+    }
+ 
+    // Discovery is resource intensive.  Make sure it isn't going on
+    // when you attempt to connect and pass your message.
+    btAdapter.cancelDiscovery();
+ 
+    // Establish the connection.  This will block until it connects.
+    try {
+      btSocket.connect();
+      out.append("\n...Connection established and data link opened...");
+    } catch (IOException e) {
+      try {
+        btSocket.close();
+      } catch (IOException e2) {
+        AlertBox("Fatal Error", "In onResume() and unable to close socket during connection failure" + e2.getMessage() + ".");
+      }
+    }
+ 
+    // Create a data stream so we can talk to server.
+    out.append("\n...Sending message to server...");
+ 
+    try {
+        outStream = btSocket.getOutputStream();
+      } catch (IOException e) {
+        AlertBox("Fatal Error", "In onResume() and output stream creation failed:" + e.getMessage() + ".");
+      }
+   
+    try {
+        inStream = btSocket.getInputStream();
+      } catch (IOException e) {
+        AlertBox("Fatal Error", "In onResume() and input stream creation failed:" + e.getMessage() + ".");
+      }
+   
+    String message = "Hello from Android.\n";
+    byte[] msgBuffer = message.getBytes();
+    byte[] inBuffer = new byte[10];
+    try {
+      outStream.write(msgBuffer);
+      inStream.read(inBuffer);
+    } catch (IOException e) {
+      String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
+      if (address.equals("00:00:00:00:00:00")) 
+        msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
+      msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
+       
+      AlertBox("Fatal Error", msg);       
+    }
+  }
+ 
+  @Override
+  public void onPause() {
+    super.onPause();
+ 
+    out.append("\n...In onPause()...");
+ 
+    if (outStream != null) {
+      try {
+        outStream.flush();
+      } catch (IOException e) {
+        AlertBox("Fatal Error", "In onPause() and failed to flush output stream: " + e.getMessage() + ".");
+      }
+    }
+ 
+    try     {
+      btSocket.close();
+    } catch (IOException e2) {
+      AlertBox("Fatal Error", "In onPause() and failed to close socket." + e2.getMessage() + ".");
+    }
+  }
+  
   @Override
   protected void onDestroy() {
     super.onDestroy();
     if (sensor != null) {
-        sensorService.unregisterListener(mySensorEventListener2);
-        sensorService.unregisterListener(mySensorEventListener3);
+        sensorService.unregisterListener(mySensorEventListener);
     }
   }
 
-  private SensorEventListener mySensorEventListener2 = new SensorEventListener() {
+  @Override
+  protected void onStop() {
+      btAdapter.disable();
+      super.onStop();
+  }
+  
+  private SensorEventListener mySensorEventListener = new SensorEventListener() {
 
 	    @Override
 	    public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -102,27 +194,9 @@ public class MainActivity extends Activity {
 
 	    @Override
 	    public void onSensorChanged(SensorEvent event) {
-	      // angle between the magnetic north direction
-	      // 0=North, 90=East, 180=South, 270=West
-	      //float azimuth = event.values[0];
-	      rcView.updateData2(event.values,event.timestamp);
+	      rcView.updateData(event.values,event.timestamp);
 	    }
 	  };
-
-	  private SensorEventListener mySensorEventListener3 = new SensorEventListener() {
-
-		    @Override
-		    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-		    }
-
-		    @Override
-		    public void onSensorChanged(SensorEvent event) {
-		      // angle between the magnetic north direction
-		      // 0=North, 90=East, 180=South, 270=West
-		      //float azimuth = event.values[0];
-		      rcView.updateData3(event.values,event.timestamp);
-		    }
-		  };
 
 	  private void CheckBTState() {
 		    // Check for Bluetooth support and then check to make sure it is turned on
@@ -130,7 +204,10 @@ public class MainActivity extends Activity {
 		    // Emulator doesn't support Bluetooth and will return null
 		    if(btAdapter==null) { 
 		      AlertBox("Fatal Error", "Bluetooth Not supported. Aborting.");
-		    } else {
+		    } 
+	  };
+		    
+	  public void OnConnect(View view) {
 		      if (btAdapter.isEnabled()) {
 		        out.append("\n...Bluetooth is enabled...");
 		      } else {
@@ -138,9 +215,27 @@ public class MainActivity extends Activity {
 		        Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 		        startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
 		      }
+		    };
+
+		    @Override
+		    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		        // If the request went well (OK) and the request was REQUEST_ENABLE_BT
+		        if (resultCode == Activity.RESULT_OK && requestCode == REQUEST_ENABLE_BT) {
+				      btnConnect.setEnabled(false);
+
+			    	  Context context = getApplicationContext();
+			    	  int duration = Toast.LENGTH_SHORT;
+
+				      Set<BluetoothDevice> bonded = btAdapter.getBondedDevices();
+				      for(BluetoothDevice dev : bonded) {
+
+				    	  Toast toast = Toast.makeText(context, dev.getName() + " " + dev.getAddress(), duration);
+				    	  toast.show();
+				      
+				      }		        
+				 }
 		    }
-		  }
-		   
+		    
 		  public void AlertBox( String title, String message ){
 		    new AlertDialog.Builder(this)
 		    .setTitle( title )
