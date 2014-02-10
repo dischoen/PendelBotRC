@@ -3,10 +3,11 @@
 
     <string name="app_name">Dodi</string>
     <string name="action_settings">Settings</string>
-    <string name="button1">B1</string>
+    <string name="button1">cBT</string>
     <string name="button2">B2</string>
-    <string name="button3">B3</string>
-    <string name="button4">B4</string>
+    <string name="button3">Free</string>
+    <string name="button4">Pend</string>
+    <string name="button5">InvP</string>
     
     
 </resources>

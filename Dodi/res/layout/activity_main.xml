@@ -17,16 +17,14 @@
         <Button
             android:id="@+id/button1"
             android:layout_width="wrap_content"
-            android:layout_height="0dp"
-            android:layout_weight=".1"
+            android:layout_height="wrap_content"
             android:text="@string/button1"
             android:onClick="OnConnect" />
 
         <Button
             android:id="@+id/button2"
             android:layout_width="wrap_content"
-            android:layout_height="0dp"
-            android:layout_weight="0.9"
+            android:layout_height="wrap_content"
             android:text="@string/button2" />
     </LinearLayout>
 
@@ -51,7 +49,15 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/button4" />
-    </LinearLayout>
+
+        <Button
+            android:id="@+id/Button5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/button5" />
+
+        
+        </LinearLayout>
         
         <org.tshinbum.dodi.RemoteControlView
             android:id="@+id/myCompassView1"
