@@ -5,6 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.tshinbum.dodi.R;
 
@@ -53,6 +56,8 @@ public class MainActivity extends Activity {
 	// Insert your server's MAC address
 	private static String address = "00:07:80:83:AC:00";
 
+	private ScheduledExecutorService scheduleTaskExecutor;
+
 	/** Called when the activity is first created. */
 
 	@Override
@@ -61,6 +66,8 @@ public class MainActivity extends Activity {
 		//setContentView(compassView);
 		setContentView(R.layout.activity_main);
 		//compassView = new MyCompassView(this);
+		scheduleTaskExecutor= Executors.newScheduledThreadPool(5);
+
 		rcView = (RemoteControlView) findViewById(R.id.myCompassView1);
 		btnConnect = (Button) findViewById(R.id.button1);
 
@@ -167,43 +174,43 @@ public class MainActivity extends Activity {
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		// If the request went well (OK) and the request was REQUEST_ENABLE_BT
 		if (resultCode == Activity.RESULT_OK && requestCode == REQUEST_ENABLE_BT) {
-			//btnConnect.setEnabled(false);
-
-			Context context = getApplicationContext();
-			int duration = Toast.LENGTH_SHORT;
-
-			Set<BluetoothDevice> bonded = btAdapter.getBondedDevices();
-			for(BluetoothDevice dev : bonded) {
-
-				if(!dev.getAddress().equals(address))
-					continue;
-				
-				Toast toast = Toast.makeText(context, dev.getName() + " " + dev.getAddress(), duration);
-				toast.show();
-
-				out.append("\n...In onResume...\n...Attempting client connect...");
-				// Set up a pointer to the remote node using it's address.
-				BluetoothDevice device = btAdapter.getRemoteDevice(address);
-
-				// Two things are needed to make a connection:
-				//   A MAC address, which we got above.
-				//   A Service ID or UUID.  In this case we are using the
-				//     UUID for SPP.
-				try {
-					btSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
-				} catch (IOException e) {
-					AlertBox("Fatal Error", "In onResume() and socket create failed: " + e.getMessage() + ".");
-				}
-
-				// Discovery is resource intensive.  Make sure it isn't going on
-				// when you attempt to connect and pass your message.
-				btAdapter.cancelDiscovery();
-				Connect2();
-			}
+			Connect2();
 		}
 	}
-	
+
+
 	protected void Connect2() {
+
+		Context context = getApplicationContext();
+		int duration = Toast.LENGTH_SHORT;
+
+		Set<BluetoothDevice> bonded = btAdapter.getBondedDevices();
+		for(BluetoothDevice dev : bonded) {
+
+			if(!dev.getAddress().equals(address))
+				continue;
+
+			Toast toast = Toast.makeText(context, dev.getName() + " " + dev.getAddress(), duration);
+			toast.show();
+
+			out.append("\n...In onResume...\n...Attempting client connect...");
+			// Set up a pointer to the remote node using it's address.
+			BluetoothDevice device = btAdapter.getRemoteDevice(address);
+
+			// Two things are needed to make a connection:
+			//   A MAC address, which we got above.
+			//   A Service ID or UUID.  In this case we are using the
+			//     UUID for SPP.
+			try {
+				btSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
+			} catch (IOException e) {
+				AlertBox("Fatal Error", "In onResume() and socket create failed: " + e.getMessage() + ".");
+			}
+
+			// Discovery is resource intensive.  Make sure it isn't going on
+			// when you attempt to connect and pass your message.
+			btAdapter.cancelDiscovery();
+		}
 		// Establish the connection.  This will block until it connects.
 		try {
 			btSocket.connect();
@@ -233,24 +240,43 @@ public class MainActivity extends Activity {
 			AlertBox("Fatal Error", "In onResume() and input stream creation failed:" + e.getMessage() + ".");
 		}
 
-		String message = "Hello from Android.\n";
-		byte[] msgBuffer = message.getBytes();
-		byte[] inBuffer = new byte[10];
-		try {
-			outStream.write(msgBuffer);
-			inStream.read(inBuffer);
-		} catch (IOException e) {
-			String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
-			if (address.equals("00:00:00:00:00:00")) 
-				msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
-			msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
 
-			AlertBox("Fatal Error", msg);       
-		}
-		int a = 34;
-		a += 1;
+		scheduleTaskExecutor.scheduleAtFixedRate(new Runnable() {
+			public void run() {
+				// Parsing RSS feed:
+				sendCommand();
+
+				// If you need update UI, simply do this:
+				//runOnUiThread(new Runnable() {
+				//	public void run() {
+						// update your UI component here.
+					//	myTextView.setText("refreshed");
+					//}
+				}
+			
+		}, 0, 50, TimeUnit.MILLISECONDS);
 	}
 
+public void sendCommand() {
+
+	String message = "Hello from Android.\n";
+	byte[] msgBuffer = message.getBytes();
+	byte[] inBuffer = new byte[10];
+	try {
+		outStream.write(msgBuffer);
+		inStream.read(inBuffer);
+	} catch (IOException e) {
+		String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
+		if (address.equals("00:00:00:00:00:00")) 
+			msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
+		msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
+
+		AlertBox("Fatal Error", msg);       
+	}
+	int a = 34;
+	a += 1;
+
+}
 	public void AlertBox( String title, String message ){
 		new AlertDialog.Builder(this)
 		.setTitle( title )
