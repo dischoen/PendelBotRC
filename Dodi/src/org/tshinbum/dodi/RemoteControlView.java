@@ -9,14 +9,22 @@ import android.view.View;
 
 public class RemoteControlView extends View {
 
-	private Paint paint;
-	private Paint paint2;
-	private Paint paint3;
+	private Paint black;
+	private Paint blue;
+	private Paint white;
+	private Paint bigBlue;
+	private Paint bigBlack;
+	private Paint bigRed;
+	
 
 	private float x2 = 0;
 	private float y2 = 0;
 	private float z2 = 0;
 	private float light = 0;
+	private int inSSC;
+	private int inSpeed;
+	private int inDirection;
+	private int inExtraCmd;
 
 
 	public RemoteControlView(Context context) {
@@ -35,26 +43,32 @@ public class RemoteControlView extends View {
 	}
 
 	private void init() {
-		paint = new Paint();
-		paint.setAntiAlias(true);
-		paint.setStrokeWidth(2);
-		paint.setTextSize(25);
-		paint.setStyle(Paint.Style.STROKE);
-		paint.setColor(Color.BLACK);
+		black = new Paint();
+		black.setAntiAlias(true);
+		black.setStrokeWidth(2);
+		black.setTextSize(25);
+		black.setStyle(Paint.Style.STROKE);
+		black.setColor(Color.BLACK);
+		bigBlack = new Paint(black);
+		bigBlack.setTextSize(50);
+		bigRed = new Paint(bigBlack);
+		bigRed.setColor(Color.RED);
 		//
-		paint2 = new Paint();
-		paint2.setAntiAlias(true);
-		paint2.setStrokeWidth(2);
-		paint2.setTextSize(25);
-		paint2.setStyle(Paint.Style.STROKE);
-		paint2.setColor(Color.BLUE);
+		blue = new Paint();
+		blue.setAntiAlias(true);
+		blue.setStrokeWidth(2);
+		blue.setTextSize(25);
+		blue.setStyle(Paint.Style.STROKE);
+		blue.setColor(Color.BLUE);
+		bigBlue = new Paint(blue);
+		bigBlue.setTextSize(50);
 		//
-		paint3 = new Paint();
-		paint3.setAntiAlias(true);
-		paint3.setStrokeWidth(2);
-		paint3.setTextSize(25);
-		paint3.setStyle(Paint.Style.STROKE);
-		paint3.setColor(Color.WHITE);
+		white = new Paint();
+		white.setAntiAlias(true);
+		white.setStrokeWidth(2);
+		white.setTextSize(25);
+		white.setStyle(Paint.Style.STROKE);
+		white.setColor(Color.WHITE);
 	}
 
 	@Override
@@ -65,32 +79,41 @@ public class RemoteControlView extends View {
 		canvas.drawColor(Color.argb(77, 33, 77, 22));
 
 		float radius = (float) (Math.max(xPoint, yPoint) * 0.6);
-		canvas.drawCircle(xPoint, yPoint, radius, paint);
-		canvas.drawRect(0, 0, getMeasuredWidth(), getMeasuredHeight(), paint);
+		canvas.drawCircle(xPoint, yPoint, radius, black);
+		canvas.drawRect(0, 0, getMeasuredWidth(), getMeasuredHeight(), black);
 
 		int offset = 25;
-		canvas.drawText("x2 "+String.valueOf(x2),        xPoint-200, yPoint,          paint);
-		canvas.drawText("y2 "+String.valueOf(y2),        xPoint-200, yPoint+offset,   paint);
-		canvas.drawText("z2 "+String.valueOf(z2),        xPoint-200, yPoint+2*offset, paint);
+		canvas.drawText("x2 "+String.valueOf(Math.round(x2*100)/100),        xPoint-200, yPoint,          black);
+		canvas.drawText("y2 "+String.valueOf(Math.round(y2*100)/100),        xPoint-200, yPoint+offset,   black);
+		canvas.drawText("z2 "+String.valueOf(Math.round(z2*100)/100),        xPoint-200, yPoint+2*offset, black);
 
+		canvas.drawText("L" + String.valueOf((int)(Math.cos((double) -x2) * 255)), xPoint + 200, yPoint, bigBlack);
+		canvas.drawText("F" + String.valueOf((int)(Math.sin((double) -y2) * 255)), xPoint + 200, yPoint+55, bigBlue);
+		
 		double magnitude = Math.sqrt(x2*x2+y2*y2+z2*z2);
-		canvas.drawText("magnitude "+String.valueOf(magnitude), xPoint-200, yPoint+4*offset, paint);
-
-		// 3.143 is a good approximation for the circle
+		//canvas.drawText("magnitude "+String.valueOf(magnitude), xPoint-200, yPoint+4*offset, black);
+		if(inSSC != 127)
+			canvas.drawText("inSSC "+String.valueOf(inSSC)+
+							" V:"+String.valueOf(inSpeed)+
+							" D:"+String.valueOf(inDirection)+
+							" X:"+String.valueOf(inExtraCmd), xPoint-200, yPoint+5*offset, black);
+		else
+			canvas.drawText("no feedback via BT", xPoint-200, yPoint+5*offset, bigRed);
+			
 		canvas.drawLine(
 				xPoint,
 				yPoint,
 				(float) (xPoint + radius
 						* Math.sin((double) (-x2) / magnitude * 3.143)),
 						(float) (yPoint - radius
-								* Math.cos((double) (-x2) / magnitude * 3.143)), paint);
+								* Math.cos((double) (-x2) / magnitude * 3.143)), black);
 		canvas.drawLine(
 				xPoint+5,
 				yPoint+5,
 				(float) (xPoint + radius
 						* Math.sin((double) (-x2) / magnitude * 3.143)),
 						(float) (yPoint - radius
-								* Math.cos((double) (-x2) / magnitude * 3.143)), paint);
+								* Math.cos((double) (-x2) / magnitude * 3.143)), black);
 
 
 
@@ -100,31 +123,31 @@ public class RemoteControlView extends View {
 				(float) (xPoint + radius
 						* Math.sin((double) (-y2) / magnitude * 3.143)),
 						(float) (yPoint - radius
-								* Math.cos((double) (-y2) / magnitude * 3.143)), paint2);
+								* Math.cos((double) (-y2) / magnitude * 3.143)), blue);
 		canvas.drawLine(
 				xPoint+5,
 				yPoint+5,
 				(float) (xPoint + radius
 						* Math.sin((double) (-y2) / magnitude * 3.143)),
 						(float) (yPoint - radius
-								* Math.cos((double) (-y2) / magnitude * 3.143)), paint2);
+								* Math.cos((double) (-y2) / magnitude * 3.143)), blue);
 		canvas.drawLine(
 				xPoint,
 				yPoint,
 				(float) (xPoint + radius
 						* Math.sin((double) (-z2) / magnitude * 3.143)),
 						(float) (yPoint - radius
-								* Math.cos((double) (-z2) / magnitude * 3.143)), paint3);
+								* Math.cos((double) (-z2) / magnitude * 3.143)), white);
 		canvas.drawLine(
 				xPoint+5,
 				yPoint+5,
 				(float) (xPoint + radius
 						* Math.sin((double) (-z2) / magnitude * 3.143)),
 						(float) (yPoint - radius
-								* Math.cos((double) (-z2) / magnitude * 3.143)), paint3);
+								* Math.cos((double) (-z2) / magnitude * 3.143)), white);
 
 
-		canvas.drawText("light "+String.valueOf(light),        xPoint-200, yPoint-3*offset, paint);
+		//canvas.drawText("light "+String.valueOf(light),        xPoint-200, yPoint-3*offset, paint);
 	}
 
 	public void updateData(float[] values, long ts) {
@@ -133,5 +156,12 @@ public class RemoteControlView extends View {
 		this.z2    = values[2];
 
 		invalidate();
+	}
+	public void updatePeriodicData(int inSSC, int inSpeed, int inDirection, int inExtraCmd) {
+		this.inSSC    = inSSC;
+		this.inSpeed = inSpeed;
+		this.inDirection = inDirection;
+		this.inExtraCmd = inExtraCmd;
+		//invalidate();
 	}
 } 

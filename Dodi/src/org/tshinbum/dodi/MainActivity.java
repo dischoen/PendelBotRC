@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
 	private RemoteControlView rcView;
 	private Button btnConnect;
 	private Sensor sensor;
+	private TextView tv1;
 
 	TextView out;
 
@@ -48,6 +49,10 @@ public class MainActivity extends Activity {
 	private BluetoothSocket btSocket = null;
 	private OutputStream outStream = null;
 	private InputStream inStream = null;
+	
+	private static int SSC = 0;
+	private static int speed;
+	private static int direction;
 
 	// Well known SPP UUID
 	private static final UUID MY_UUID =
@@ -70,6 +75,7 @@ public class MainActivity extends Activity {
 
 		rcView = (RemoteControlView) findViewById(R.id.myCompassView1);
 		btnConnect = (Button) findViewById(R.id.button1);
+		tv1 = (TextView) findViewById(R.id.textView1);
 
 		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
@@ -146,6 +152,9 @@ public class MainActivity extends Activity {
 
 		@Override
 		public void onSensorChanged(SensorEvent event) {
+			speed     = (int)(Math.cos((double) -event.values[0]) * 255);
+			direction = (int)(Math.sin((double) -event.values[1]) * 255);
+
 			rcView.updateData(event.values,event.timestamp);
 		}
 	};
@@ -259,13 +268,33 @@ public class MainActivity extends Activity {
 
 public void sendCommand() {
 
-	String message = "Hello from Android.\n";
-	byte[] msgBuffer = message.getBytes();
-	byte[] inBuffer = new byte[10];
+	if(SSC==64)
+		SSC = 0;
+	
+	
+	byte[] outBuffer = new byte[8];
+	outBuffer[0] = (byte)0xff;
+	outBuffer[1] = (byte)0xff;
+	outBuffer[2] = (byte)SSC++;
+	outBuffer[3] = (byte)(speed >> 8);
+	outBuffer[4] = (byte)(speed & 0xFF);
+	outBuffer[5] = (byte)(direction >> 8);
+	outBuffer[6] = (byte)(direction & 0xFF);
+	outBuffer[7] = (byte)0x66;
+	
+	byte[] inBuffer = new byte[6];
 	try {
-		outStream.write(msgBuffer);
+		outStream.write(outBuffer);
 		inStream.read(inBuffer);
+		int inSSC       = inBuffer[0];
+		int inSpeed     = (inBuffer[1] << 8) + inBuffer[2];
+		int inDirection = (inBuffer[3] << 8) + inBuffer[4];
+		int inExtraCmd  = inBuffer[5];
+		Log.d("sendCmd", "inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
+		rcView.updatePeriodicData(inSSC, inSpeed, inDirection, inExtraCmd);
+		tv1.setText("inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
 	} catch (IOException e) {
+		rcView.updatePeriodicData(127,0,0,0);
 		String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
 		if (address.equals("00:00:00:00:00:00")) 
 			msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
@@ -273,9 +302,6 @@ public void sendCommand() {
 
 		AlertBox("Fatal Error", msg);       
 	}
-	int a = 34;
-	a += 1;
-
 }
 	public void AlertBox( String title, String message ){
 		new AlertDialog.Builder(this)
