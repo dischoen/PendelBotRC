@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Set;
+import java.util.Timer;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -12,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import org.tshinbum.dodi.R;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -49,10 +51,16 @@ public class MainActivity extends Activity {
 	private BluetoothSocket btSocket = null;
 	private OutputStream outStream = null;
 	private InputStream inStream = null;
-	
+
 	private static int SSC = 0;
 	private static int speed;
 	private static int direction;
+
+	public static Handler mHandler;
+	private int mInterval = 50;
+	private static Timer timer;
+	private static int elapsedTime = 0;
+
 
 	// Well known SPP UUID
 	private static final UUID MY_UUID =
@@ -97,6 +105,7 @@ public class MainActivity extends Activity {
 		out = (TextView) findViewById(R.id.out);
 		btAdapter = BluetoothAdapter.getDefaultAdapter();
 		CheckBTState();
+		mHandler = new Handler();
 	}
 
 	@Override
@@ -250,59 +259,87 @@ public class MainActivity extends Activity {
 		}
 
 
-		scheduleTaskExecutor.scheduleAtFixedRate(new Runnable() {
-			public void run() {
-				// Parsing RSS feed:
-				sendCommand();
-
-				// If you need update UI, simply do this:
-				//runOnUiThread(new Runnable() {
-				//	public void run() {
-						// update your UI component here.
-					//	myTextView.setText("refreshed");
-					//}
-				}
-			
-		}, 0, 50, TimeUnit.MILLISECONDS);
+		//		scheduleTaskExecutor.scheduleAtFixedRate(new Runnable() {
+		//			public void run() {
+		//				// Parsing RSS feed:
+		//				//sendCommand();
+		//
+		//				// If you need update UI, simply do this:
+		//				runOnUiThread(new Runnable() {
+		//					public void run() {
+		//						// update your UI component here.
+		//						sendCommand();
+		//					}
+		//				});
+		//			}
+		//		}, 0, 50, TimeUnit.MILLISECONDS);
 	}
 
-public void sendCommand() {
+	public void sendCommand() {
 
-	if(SSC==64)
-		SSC = 0;
-	
-	
-	byte[] outBuffer = new byte[8];
-	outBuffer[0] = (byte)0xff;
-	outBuffer[1] = (byte)0xff;
-	outBuffer[2] = (byte)SSC++;
-	outBuffer[3] = (byte)(speed >> 8);
-	outBuffer[4] = (byte)(speed & 0xFF);
-	outBuffer[5] = (byte)(direction >> 8);
-	outBuffer[6] = (byte)(direction & 0xFF);
-	outBuffer[7] = (byte)0x66;
-	
-	byte[] inBuffer = new byte[6];
-	try {
-		outStream.write(outBuffer);
-		inStream.read(inBuffer);
-		int inSSC       = inBuffer[0];
-		int inSpeed     = (inBuffer[1] << 8) + inBuffer[2];
-		int inDirection = (inBuffer[3] << 8) + inBuffer[4];
-		int inExtraCmd  = inBuffer[5];
-		Log.d("sendCmd", "inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
-		rcView.updatePeriodicData(inSSC, inSpeed, inDirection, inExtraCmd);
-		tv1.setText("inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
-	} catch (IOException e) {
-		rcView.updatePeriodicData(127,0,0,0);
-		String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
-		if (address.equals("00:00:00:00:00:00")) 
-			msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
-		msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
+		if(SSC==64)
+			SSC = 0;
 
-		AlertBox("Fatal Error", msg);       
+
+		byte[] outBuffer = new byte[8];
+		outBuffer[0] = (byte)0xff;
+		outBuffer[1] = (byte)0xff;
+		outBuffer[2] = (byte)SSC++;
+		outBuffer[3] = (byte)(speed >> 8);
+		outBuffer[4] = (byte)(speed & 0xFF);
+		outBuffer[5] = (byte)(direction >> 8);
+		outBuffer[6] = (byte)(direction & 0xFF);
+		outBuffer[7] = (byte)0x66;
+
+		byte[] inBuffer = new byte[6];
+		try {
+			outStream.write(outBuffer);
+			//inStream.available()
+			inStream.read(inBuffer);
+			int inSSC       = inBuffer[0];
+			int inSpeed     = (inBuffer[1] << 8) + inBuffer[2];
+			int inDirection = (inBuffer[3] << 8) + inBuffer[4];
+			int inExtraCmd  = inBuffer[5];
+			Log.d("sendCmd", "inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
+			rcView.updatePeriodicData(inSSC, inSpeed, inDirection, inExtraCmd);
+			tv1.setText("inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
+
+		} catch (IOException e) {
+			rcView.updatePeriodicData(127,0,0,0);
+			String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
+			if (address.equals("00:00:00:00:00:00")) 
+				msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
+			msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
+
+			AlertBox("Fatal Error", msg);       
+		}
 	}
-}
+
+	Runnable mStatusChecker = new Runnable() {
+
+		@Override 
+		public void run() {
+			elapsedTime += 1; //increase every sec
+			tv1.setText(String.valueOf(elapsedTime));
+			sendCommand();
+			mHandler.postDelayed(mStatusChecker, mInterval);
+		}
+	};
+
+	void startRepeatingTask() {
+		mStatusChecker.run(); 
+	}
+
+	void stopRepeatingTask() {
+		mHandler.removeCallbacks(mStatusChecker);
+	} 
+
+	public void OnTimerStart(View view) {
+		startRepeatingTask();
+	};
+
+
+
 	public void AlertBox( String title, String message ){
 		new AlertDialog.Builder(this)
 		.setTitle( title )
