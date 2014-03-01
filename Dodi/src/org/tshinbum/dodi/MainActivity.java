@@ -4,11 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Set;
-import java.util.Timer;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import org.tshinbum.dodi.R;
 
@@ -42,7 +38,6 @@ public class MainActivity extends Activity {
 	private RemoteControlView rcView;
 	private Button btnConnect;
 	private Sensor sensor;
-	private TextView tv1;
 
 	TextView out;
 
@@ -53,37 +48,37 @@ public class MainActivity extends Activity {
 	private InputStream inStream = null;
 
 	private static int SSC = 0;
+	private static float raw_speed;
+	private static float raw_direc;
 	private static int speed;
-	private static int direction;
+	private static int direc;
+	private static float speed_off = 0;
+	private static float direc_off = 0;
 
 	public static Handler mHandler;
 	private int mInterval = 50;
-	private static Timer timer;
-	private static int elapsedTime = 0;
+	protected int left;
+	protected int right;
 
 
-	// Well known SPP UUID
+	// SPP UUID
 	private static final UUID MY_UUID =
 			UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-	// Insert your server's MAC address
+	// My ARDUINOBT
 	private static String address = "00:07:80:83:AC:00";
 
-	private ScheduledExecutorService scheduleTaskExecutor;
+	//private ScheduledExecutorService scheduleTaskExecutor;
 
 	/** Called when the activity is first created. */
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		//setContentView(compassView);
 		setContentView(R.layout.activity_main);
-		//compassView = new MyCompassView(this);
-		scheduleTaskExecutor= Executors.newScheduledThreadPool(5);
 
 		rcView = (RemoteControlView) findViewById(R.id.myCompassView1);
 		btnConnect = (Button) findViewById(R.id.button1);
-		tv1 = (TextView) findViewById(R.id.textView1);
 
 		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
@@ -99,7 +94,6 @@ public class MainActivity extends Activity {
 			Log.e("Compass MainActivity", "Registerered for GRAVITY Sensor");
 			Toast.makeText(this, "GRAVITY Sensor not found",
 					Toast.LENGTH_LONG).show();
-			//finish();
 		}
 
 		out = (TextView) findViewById(R.id.out);
@@ -116,7 +110,9 @@ public class MainActivity extends Activity {
 	@Override
 	public void onPause() {
 		super.onPause();
-
+		
+		stopRepeatingTask();
+		
 		out.append("\n...In onPause()...");
 
 		if (outStream != null) {
@@ -161,10 +157,34 @@ public class MainActivity extends Activity {
 
 		@Override
 		public void onSensorChanged(SensorEvent event) {
-			speed     = (int)(Math.cos((double) -event.values[0]) * 255);
-			direction = (int)(Math.sin((double) -event.values[1]) * 255);
+			double magnitude = Math.sqrt(
+						event.values[0]*event.values[0]+
+						event.values[1]*event.values[1]+
+						event.values[2]*event.values[2]);
 
-			rcView.updateData(event.values,event.timestamp);
+			raw_speed = (float)(event.values[0]/magnitude);
+			raw_direc = (float)(event.values[1]/magnitude);
+
+			speed = (int)(255 * Math.sin(Math.asin(raw_speed) - Math.asin(speed_off)));
+			direc = (int)(255 * Math.sin(Math.asin(raw_direc) - Math.asin(direc_off)));
+			Log.d("onSensorChanged", "speed "+String.valueOf(speed)+" Dir:"+String.valueOf(direc));
+
+			if(direc<0)
+			{
+				left  = speed + direc * 2 * speed / 255;
+				right = speed;
+				Log.d("onSensorChanged", "<left "+String.valueOf(left)+" right:"+String.valueOf(right));
+			}
+			else
+			{
+				left = speed;
+				right = speed - direc * 2 * speed / 255;
+				Log.d("onSensorChanged", ">left "+String.valueOf(left)+" right:"+String.valueOf(right));
+			}
+			// invert, for better usability
+			left  = -left;
+			right = -right;
+			rcView.updateData(speed, direc, left, right);
 		}
 	};
 
@@ -257,27 +277,11 @@ public class MainActivity extends Activity {
 		} catch (IOException e) {
 			AlertBox("Fatal Error", "In onResume() and input stream creation failed:" + e.getMessage() + ".");
 		}
-
-
-		//		scheduleTaskExecutor.scheduleAtFixedRate(new Runnable() {
-		//			public void run() {
-		//				// Parsing RSS feed:
-		//				//sendCommand();
-		//
-		//				// If you need update UI, simply do this:
-		//				runOnUiThread(new Runnable() {
-		//					public void run() {
-		//						// update your UI component here.
-		//						sendCommand();
-		//					}
-		//				});
-		//			}
-		//		}, 0, 50, TimeUnit.MILLISECONDS);
 	}
 
 	public void sendCommand() {
 
-		if(SSC==64)
+		if(SSC==32)
 			SSC = 0;
 
 
@@ -285,10 +289,10 @@ public class MainActivity extends Activity {
 		outBuffer[0] = (byte)0xff;
 		outBuffer[1] = (byte)0xff;
 		outBuffer[2] = (byte)SSC++;
-		outBuffer[3] = (byte)(speed >> 8);
-		outBuffer[4] = (byte)(speed & 0xFF);
-		outBuffer[5] = (byte)(direction >> 8);
-		outBuffer[6] = (byte)(direction & 0xFF);
+		outBuffer[3] = (byte)(left >> 8);
+		outBuffer[4] = (byte)(left & 0xFF);
+		outBuffer[5] = (byte)(right >> 8);
+		outBuffer[6] = (byte)(right & 0xFF);
 		outBuffer[7] = (byte)0x66;
 
 		byte[] inBuffer = new byte[6];
@@ -302,16 +306,9 @@ public class MainActivity extends Activity {
 			int inExtraCmd  = inBuffer[5];
 			Log.d("sendCmd", "inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
 			rcView.updatePeriodicData(inSSC, inSpeed, inDirection, inExtraCmd);
-			tv1.setText("inSSC "+String.valueOf(inSSC)+" V:"+String.valueOf(inSpeed)+" D:"+String.valueOf(inDirection));
 
 		} catch (IOException e) {
 			rcView.updatePeriodicData(127,0,0,0);
-			String msg = "In onResume() and an exception occurred during write: " + e.getMessage();
-			if (address.equals("00:00:00:00:00:00")) 
-				msg = msg + ".\n\nUpdate your server address from 00:00:00:00:00:00 to the correct address on line 37 in the java code";
-			msg = msg +  ".\n\nCheck that the SPP UUID: " + MY_UUID.toString() + " exists on server.\n\n";
-
-			AlertBox("Fatal Error", msg);       
 		}
 	}
 
@@ -319,8 +316,6 @@ public class MainActivity extends Activity {
 
 		@Override 
 		public void run() {
-			elapsedTime += 1; //increase every sec
-			tv1.setText(String.valueOf(elapsedTime));
 			sendCommand();
 			mHandler.postDelayed(mStatusChecker, mInterval);
 		}
@@ -338,6 +333,14 @@ public class MainActivity extends Activity {
 		startRepeatingTask();
 	};
 
+	public void OnZero(View view) {
+		zero();
+	};
+
+	void zero() {
+		speed_off = raw_speed;
+		direc_off = raw_direc;
+	}
 
 
 	public void AlertBox( String title, String message ){

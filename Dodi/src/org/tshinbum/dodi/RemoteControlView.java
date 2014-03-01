@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -12,15 +13,18 @@ public class RemoteControlView extends View {
 	private Paint black;
 	private Paint blue;
 	private Paint white;
+	private Paint red;
+	private Paint green;
+	
 	private Paint bigBlue;
 	private Paint bigBlack;
 	private Paint bigRed;
 	
 
-	private float x2 = 0;
-	private float y2 = 0;
-	private float z2 = 0;
-	private float light = 0;
+	private float speed = 0;
+	private float direc = 0;
+	private float left;
+	private float right;
 	private int inSSC;
 	private int inSpeed;
 	private int inDirection;
@@ -49,26 +53,31 @@ public class RemoteControlView extends View {
 		black.setTextSize(25);
 		black.setStyle(Paint.Style.STROKE);
 		black.setColor(Color.BLACK);
-		bigBlack = new Paint(black);
-		bigBlack.setTextSize(50);
-		bigRed = new Paint(bigBlack);
-		bigRed.setColor(Color.RED);
-		//
-		blue = new Paint();
-		blue.setAntiAlias(true);
-		blue.setStrokeWidth(2);
-		blue.setTextSize(25);
-		blue.setStyle(Paint.Style.STROKE);
-		blue.setColor(Color.BLUE);
-		bigBlue = new Paint(blue);
-		bigBlue.setTextSize(50);
 		//
 		white = new Paint();
 		white.setAntiAlias(true);
 		white.setStrokeWidth(2);
 		white.setTextSize(25);
-		white.setStyle(Paint.Style.STROKE);
+		white.setStyle(Paint.Style.FILL_AND_STROKE);
 		white.setColor(Color.WHITE);
+
+		red = new Paint(white);
+		red.setColor(Color.RED);
+		
+		green = new Paint(white);
+		green.setColor(Color.GREEN);
+		
+		blue = new Paint(white);
+		blue.setColor(Color.BLUE);
+
+		bigBlack = new Paint(black);
+		bigBlack.setTextSize(50);
+		bigBlack.setTypeface(Typeface.MONOSPACE);
+		bigBlack.setStyle(Paint.Style.FILL_AND_STROKE);
+		
+		bigBlue = new Paint(bigBlack);
+		bigBlue.setTextSize(50);
+
 	}
 
 	@Override
@@ -83,78 +92,100 @@ public class RemoteControlView extends View {
 		canvas.drawRect(0, 0, getMeasuredWidth(), getMeasuredHeight(), black);
 
 		int offset = 25;
-		canvas.drawText("x2 "+String.valueOf(Math.round(x2*100)/100),        xPoint-200, yPoint,          black);
-		canvas.drawText("y2 "+String.valueOf(Math.round(y2*100)/100),        xPoint-200, yPoint+offset,   black);
-		canvas.drawText("z2 "+String.valueOf(Math.round(z2*100)/100),        xPoint-200, yPoint+2*offset, black);
-
-		canvas.drawText("L" + String.valueOf((int)(Math.cos((double) -x2) * 255)), xPoint + 200, yPoint, bigBlack);
-		canvas.drawText("F" + String.valueOf((int)(Math.sin((double) -y2) * 255)), xPoint + 200, yPoint+55, bigBlue);
+		canvas.drawText("Speed:" + String.valueOf((int)speed), xPoint + 200, 50, bigBlack);
+		canvas.drawText("Direc:" + String.valueOf((int)direc), xPoint + 200, 100, bigBlue);
+		canvas.drawText("left :" + String.valueOf((int)left), xPoint + 200,  150, bigBlack);
+		canvas.drawText("right:" + String.valueOf((int)right), xPoint + 200, 200, bigBlue);
 		
-		double magnitude = Math.sqrt(x2*x2+y2*y2+z2*z2);
-		//canvas.drawText("magnitude "+String.valueOf(magnitude), xPoint-200, yPoint+4*offset, black);
 		if(inSSC != 127)
 			canvas.drawText("inSSC "+String.valueOf(inSSC)+
 							" V:"+String.valueOf(inSpeed)+
 							" D:"+String.valueOf(inDirection)+
-							" X:"+String.valueOf(inExtraCmd), xPoint-200, yPoint+5*offset, black);
+							" X:"+String.valueOf(inExtraCmd), xPoint-400, yPoint+12*offset, black);
 		else
 			canvas.drawText("no feedback via BT", xPoint-200, yPoint+5*offset, bigRed);
 			
-		canvas.drawLine(
-				xPoint,
-				yPoint,
-				(float) (xPoint + radius
-						* Math.sin((double) (-x2) / magnitude * 3.143)),
-						(float) (yPoint - radius
-								* Math.cos((double) (-x2) / magnitude * 3.143)), black);
-		canvas.drawLine(
-				xPoint+5,
-				yPoint+5,
-				(float) (xPoint + radius
-						* Math.sin((double) (-x2) / magnitude * 3.143)),
-						(float) (yPoint - radius
-								* Math.cos((double) (-x2) / magnitude * 3.143)), black);
+		canvas.drawLine(xPoint, 0, xPoint, getMeasuredHeight(), blue);
+		canvas.drawLine(0, yPoint, getMeasuredWidth(), yPoint, blue);
+		
+		if(direc>0)
+			canvas.drawRect(
+					(float)xPoint, 
+					(float)yPoint, 
+					(float)(xPoint+direc/255*radius), 
+					(float)yPoint+30, 
+					blue);
+		else
+			canvas.drawRect(
+					(float)(xPoint+direc/255*radius), 
+					(float)yPoint, 
+					(float)xPoint, 
+					(float)yPoint+30, 
+					white);
+		if(speed>0)	
+			canvas.drawRect(
+					(float)xPoint, 
+					(float)yPoint, 
+					(float)xPoint+30, 
+					(float)(yPoint+speed/255*radius), 
+					green);
+		else
+			canvas.drawRect(
+					(float)xPoint, 
+					(float)(yPoint+speed/255*radius), 
+					(float)xPoint+30, 
+					(float)yPoint, 
+					red);
 
+		canvas.drawRect(
+				(float)xPoint-230, 
+				(float)(yPoint-200), 
+				(float)xPoint-200, 
+				(float)yPoint+200, 
+				black);
+		canvas.drawRect(
+				(float)xPoint-190, 
+				(float)(yPoint-200), 
+				(float)xPoint-160, 
+				(float)yPoint+200, 
+				black);
 
-
-		canvas.drawLine(
-				xPoint,
-				yPoint,
-				(float) (xPoint + radius
-						* Math.sin((double) (-y2) / magnitude * 3.143)),
-						(float) (yPoint - radius
-								* Math.cos((double) (-y2) / magnitude * 3.143)), blue);
-		canvas.drawLine(
-				xPoint+5,
-				yPoint+5,
-				(float) (xPoint + radius
-						* Math.sin((double) (-y2) / magnitude * 3.143)),
-						(float) (yPoint - radius
-								* Math.cos((double) (-y2) / magnitude * 3.143)), blue);
-		canvas.drawLine(
-				xPoint,
-				yPoint,
-				(float) (xPoint + radius
-						* Math.sin((double) (-z2) / magnitude * 3.143)),
-						(float) (yPoint - radius
-								* Math.cos((double) (-z2) / magnitude * 3.143)), white);
-		canvas.drawLine(
-				xPoint+5,
-				yPoint+5,
-				(float) (xPoint + radius
-						* Math.sin((double) (-z2) / magnitude * 3.143)),
-						(float) (yPoint - radius
-								* Math.cos((double) (-z2) / magnitude * 3.143)), white);
-
-
-		//canvas.drawText("light "+String.valueOf(light),        xPoint-200, yPoint-3*offset, paint);
+  		if(left<0)
+ 			canvas.drawRect(
+					(float)xPoint-225, 
+					(float)(yPoint), 
+					(float)xPoint-205, 
+					(float)(yPoint-left*200/255), 
+					green);
+		else
+			canvas.drawRect(
+				(float)xPoint-225, 
+				(float)(yPoint-left*200/255), 
+				(float)xPoint-205, 
+				(float)yPoint, 
+				green);
+  		if(right<0)
+ 			canvas.drawRect(
+					(float)xPoint-185, 
+					(float)(yPoint), 
+					(float)xPoint-165, 
+					(float)(yPoint-right*200/255), 
+					green);
+		else
+			canvas.drawRect(
+				(float)xPoint-185, 
+				(float)(yPoint-right*200/255), 
+				(float)xPoint-165, 
+				(float)yPoint, 
+				green);
+		
 	}
 
-	public void updateData(float[] values, long ts) {
-		this.x2    = values[0];
-		this.y2    = values[1];
-		this.z2    = values[2];
-
+	public void updateData(int speed, int direc, int left, int right) {
+		this.speed    = speed;
+		this.direc    = direc;
+		this.left = left;
+		this.right = right;
 		invalidate();
 	}
 	public void updatePeriodicData(int inSSC, int inSpeed, int inDirection, int inExtraCmd) {

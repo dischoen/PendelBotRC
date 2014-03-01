@@ -27,6 +27,14 @@
             android:layout_height="wrap_content"
             android:text="@string/button2"
             android:onClick="OnTimerStart" />
+
+        <Button
+            android:id="@+id/button6"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/zero"
+            android:onClick="OnZero" />
+
     </LinearLayout>
 
     <LinearLayout
@@ -43,7 +51,8 @@
             android:id="@+id/button3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/button3" />
+            android:text="@string/button3"
+            android:textColor="#06782A" />
 
         <Button
             android:id="@+id/button4"
@@ -82,10 +91,55 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignLeft="@+id/myCompassView1"
+            android:layout_alignParentTop="true"
+            android:layout_marginLeft="218dp"
+            android:layout_marginTop="52dp"
+            android:text="Motor Speed"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <TextView
+            android:id="@+id/textView2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
-            android:layout_marginBottom="40dp"
-            android:layout_marginLeft="27dp"
-            android:layout_toLeftOf="@+id/linearLayout2"
-            android:text="TextView" />
+            android:layout_alignRight="@+id/textView1"
+            android:layout_marginBottom="50dp"
+            android:layout_marginRight="73dp"
+            android:text="left"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <TextView
+            android:id="@+id/textView3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@+id/textView2"
+            android:layout_alignBottom="@+id/textView2"
+            android:layout_alignRight="@+id/textView1"
+            android:layout_marginRight="21dp"
+            android:text="right"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <TextView
+            android:id="@+id/textView4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/textView1"
+            android:layout_marginLeft="23dp"
+            android:layout_marginTop="111dp"
+            android:layout_toRightOf="@+id/textView1"
+            android:rotation="-90"
+            android:text="pitch"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@+id/textView4"
+            android:layout_alignBottom="@+id/textView4"
+            android:layout_marginLeft="66dp"
+            android:layout_toRightOf="@+id/textView4"
+            android:text="roll"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
     
 </RelativeLayout>
